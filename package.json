@@ -38,7 +38,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.1",
     "morgan": "^1.10.0",
-    "ollama": "^0.5.18",
+    "ollama": "^0.6.0",
     "pm2": "^5.3.1",
     "prom-client": "^15.1.0",
     "socket.io": "^4.7.4",
