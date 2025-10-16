@@ -1,7 +1,11 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import './Footer.css';
 
 function Footer() {
+  const { t } = useTranslation();
+  
   return (
     <footer className="footer">
       <div className="container">
@@ -9,43 +13,43 @@ function Footer() {
           <div className="footer-brand">
             <span className="footer-logo">DIForM</span>
             <p className="footer-description">
-              Work done, not just assisted. Transforming enterprise productivity through intelligent automation.
+              {t('footer.description')}
             </p>
           </div>
 
           <div className="footer-links">
-            <h4 className="footer-heading">Product</h4>
+            <h4 className="footer-heading">{t('footer.product')}</h4>
             <ul>
-              <li><a href="#features">Features</a></li>
-              <li><a href="#architecture">Architecture</a></li>
-              <li><a href="#security">Security</a></li>
-              <li><a href="#">Documentation</a></li>
+              <li><a href="#features">{t('footer.features')}</a></li>
+              <li><a href="#architecture">{t('footer.architecture')}</a></li>
+              <li><a href="#security">{t('footer.security')}</a></li>
+              <li><Link to="/documentation">{t('footer.documentation')}</Link></li>
             </ul>
           </div>
 
           <div className="footer-links">
-            <h4 className="footer-heading">Company</h4>
+            <h4 className="footer-heading">{t('footer.company')}</h4>
             <ul>
-              <li><a href="#">About</a></li>
-              <li><a href="#">Blog</a></li>
-              <li><a href="#">Careers</a></li>
-              <li><a href="#">Contact</a></li>
+              <li><Link to="/about">{t('footer.about')}</Link></li>
+              <li><Link to="/blog">{t('footer.blog')}</Link></li>
+              <li><Link to="/careers">{t('footer.careers')}</Link></li>
+              <li><Link to="/contact">{t('footer.contact')}</Link></li>
             </ul>
           </div>
 
           <div className="footer-links">
-            <h4 className="footer-heading">Legal</h4>
+            <h4 className="footer-heading">{t('footer.legal')}</h4>
             <ul>
-              <li><a href="#">Privacy</a></li>
-              <li><a href="#">Terms</a></li>
-              <li><a href="#">Security</a></li>
-              <li><a href="#">Compliance</a></li>
+              <li><Link to="/privacy">{t('footer.privacy')}</Link></li>
+              <li><Link to="/terms">{t('footer.terms')}</Link></li>
+              <li><Link to="/security">{t('footer.securityPolicy')}</Link></li>
+              <li><Link to="/compliance">{t('footer.compliance')}</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="footer-bottom">
-          <p>&copy; 2024 DIForM. All rights reserved. Work gets done.</p>
+          <p>{t('footer.copyright')}</p>
         </div>
       </div>
     </footer>

@@ -1,0 +1,180 @@
+.doc-page {
+  background: #F9FAFB;
+  min-height: 100vh;
+  padding: 80px 20px 40px;
+}
+
+.doc-container {
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  padding: 48px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.doc-container h1 {
+  font-size: 40px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 32px;
+  border-bottom: 3px solid #3B82F6;
+  padding-bottom: 16px;
+}
+
+.doc-section {
+  margin-bottom: 48px;
+}
+
+.doc-section h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1F2937;
+  margin-bottom: 20px;
+  margin-top: 32px;
+}
+
+.doc-section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+.doc-section h4 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #4B5563;
+  margin-bottom: 12px;
+  margin-top: 20px;
+}
+
+.doc-section p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #4B5563;
+  margin-bottom: 16px;
+}
+
+.doc-section ul,
+.doc-section ol {
+  margin: 16px 0;
+  padding-left: 28px;
+}
+
+.doc-section li {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #4B5563;
+  margin-bottom: 8px;
+}
+
+.doc-section code {
+  background: #F3F4F6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  color: #DC2626;
+}
+
+.doc-section pre {
+  background: #1F2937;
+  padding: 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.doc-section pre code {
+  background: transparent;
+  padding: 0;
+  color: #F9FAFB;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.endpoint {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.endpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.method {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.method.get {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.method.post {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.method.put {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.method.delete {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.path {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+.doc-section a {
+  color: #3B82F6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.doc-section a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .doc-container {
+    padding: 32px 24px;
+  }
+
+  .doc-container h1 {
+    font-size: 32px;
+  }
+
+  .doc-section h2 {
+    font-size: 24px;
+  }
+
+  .doc-section h3 {
+    font-size: 18px;
+  }
+
+  .endpoint-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

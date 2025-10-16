@@ -57,6 +57,37 @@
   color: #3B82F6;
 }
 
+.language-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F3F4F6;
+  padding: 4px;
+  border-radius: 9999px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.3s ease;
+  opacity: 0.6;
+}
+
+.lang-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.1);
+}
+
+.lang-btn.active {
+  background: white;
+  opacity: 1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .btn-demo {
   background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
   color: white;

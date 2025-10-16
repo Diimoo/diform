@@ -3,14 +3,22 @@ const path = require('path');
 const Store = require('electron-store');
 const { PublicClientApplication } = require('@azure/msal-node');
 const { Client } = require('@microsoft/microsoft-graph-client');
+require('dotenv').config();
 
 // Initialize electron-store for persistent storage
 const store = new Store();
 
-// MSAL Configuration - Replace with your Azure AD app credentials
+// Validate required environment variables
+if (!process.env.AZURE_CLIENT_ID) {
+  console.error('❌ AZURE_CLIENT_ID is required but not set in environment variables');
+  console.error('Please set AZURE_CLIENT_ID in your .env file');
+  app.quit();
+}
+
+// MSAL Configuration - Uses environment variable
 const msalConfig = {
   auth: {
-    clientId: process.env.AZURE_CLIENT_ID || 'YOUR_CLIENT_ID_HERE',
+    clientId: process.env.AZURE_CLIENT_ID,
     authority: 'https://login.microsoftonline.com/common',
   },
 };
@@ -88,10 +96,22 @@ ipcMain.handle('auth:login', async () => {
     const authResult = await acquireToken();
     if (authResult) {
       authToken = authResult.accessToken;
+      
+      // Store token with expiration
+      store.set('auth', {
+        accessToken: authResult.accessToken,
+        expiresOn: authResult.expiresOn,
+        account: authResult.account
+      });
+      
       store.set('user', {
         username: authResult.account.username,
         name: authResult.account.name,
       });
+      
+      // Schedule token refresh
+      scheduleTokenRefresh(authResult.expiresOn);
+      
       return {
         success: true,
         user: authResult.account,
@@ -335,3 +355,87 @@ function getGraphClient(accessToken) {
     },
   });
 }
+
+// Token refresh functionality
+let refreshTimeout;
+
+function scheduleTokenRefresh(expiresOn) {
+  // Clear existing timeout
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout);
+  }
+  
+  const expiryTime = new Date(expiresOn).getTime();
+  const now = Date.now();
+  const timeUntilExpiry = expiryTime - now;
+  
+  // Refresh 5 minutes before expiry
+  const refreshTime = Math.max(timeUntilExpiry - (5 * 60 * 1000), 0);
+  
+  console.log(`Token will refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`);
+  
+  refreshTimeout = setTimeout(async () => {
+    try {
+      console.log('Refreshing access token...');
+      const authData = store.get('auth');
+      
+      if (authData && authData.account) {
+        // Silent token refresh
+        const tokenRequest = {
+          scopes: [
+            'User.Read',
+            'Mail.ReadWrite',
+            'Mail.Send',
+            'Calendars.ReadWrite',
+            'Files.ReadWrite.All',
+          ],
+          account: authData.account,
+          forceRefresh: true
+        };
+        
+        const refreshedToken = await msalInstance.acquireTokenSilent(tokenRequest);
+        
+        if (refreshedToken) {
+          authToken = refreshedToken.accessToken;
+          
+          store.set('auth', {
+            accessToken: refreshedToken.accessToken,
+            expiresOn: refreshedToken.expiresOn,
+            account: refreshedToken.account
+          });
+          
+          console.log('✅ Token refreshed successfully');
+          
+          // Schedule next refresh
+          scheduleTokenRefresh(refreshedToken.expiresOn);
+        }
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      // If refresh fails, user will need to login again
+      authToken = null;
+      store.delete('auth');
+    }
+  }, refreshTime);
+}
+
+// On app start, check for existing valid token
+app.whenReady().then(() => {
+  const authData = store.get('auth');
+  
+  if (authData && authData.expiresOn) {
+    const expiryTime = new Date(authData.expiresOn).getTime();
+    const now = Date.now();
+    
+    if (expiryTime > now) {
+      // Token still valid
+      authToken = authData.accessToken;
+      scheduleTokenRefresh(authData.expiresOn);
+      console.log('✅ Restored existing valid token');
+    } else {
+      // Token expired, clear it
+      store.delete('auth');
+      console.log('⚠️  Stored token expired, login required');
+    }
+  }
+});

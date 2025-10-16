@@ -92,10 +92,20 @@ DIForM runs on **all major platforms**:
 ## 📦 Installation
 
 ### Prerequisites
-- Node.js (v16 or higher)
+- Node.js (v18 or higher)
 - npm or yarn
+- MongoDB (v5 or higher) - for data persistence
+- Ollama (optional) - for local AI
 
-### Setup
+### Quick Setup
+
+Run the automated setup script:
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### Manual Setup
 
 1. **Clone the repository**
    ```bash
@@ -112,10 +122,34 @@ DIForM runs on **all major platforms**:
 3. **Configure environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your settings
+   # Edit .env with your settings (see below)
    ```
 
-4. **Install Local AI (Optional but Recommended)**
+4. **Set up MongoDB**
+   ```bash
+   # Option A: Using Docker
+   docker-compose up mongodb -d
+   
+   # Option B: Local MongoDB
+   mongod --dbpath=/path/to/data
+   ```
+
+5. **Configure required environment variables**
+   
+   Edit `.env` and set:
+   ```bash
+   # Database (REQUIRED)
+   MONGODB_URI=mongodb://localhost:27017/diform
+   
+   # JWT Authentication (REQUIRED)
+   # Generate with: openssl rand -base64 32
+   JWT_SECRET=your-secret-key-here-minimum-32-characters
+   
+   # Azure AD (for Electron app)
+   AZURE_CLIENT_ID=your-azure-client-id
+   ```
+
+6. **Install Local AI (Optional but Recommended)**
    ```bash
    ./INSTALL_OLLAMA.sh
    ollama serve
@@ -186,17 +220,74 @@ diform/
 └── README.md           # This file
 ```
 
+## 🔐 Authentication
+
+DIForM now includes JWT-based authentication for secure API access.
+
+### Register a New User
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123",
+    "name": "John Doe"
+  }'
+```
+
+### Login
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "SecurePass123"
+  }'
+```
+
+Response includes a JWT token:
+```json
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}
+```
+
+### Using the Token
+
+Include the token in the `Authorization` header for all protected endpoints:
+```bash
+Authorization: Bearer <your-jwt-token>
+```
+
 ## 🔌 API Endpoints
 
-### Health Check
+### Public Endpoints
+
+#### Health Check
 ```
 GET /api/health
 ```
-Returns server health status.
+Returns server health status and database connection.
 
-### Process Command
+#### Authentication
+```
+POST /api/auth/register  - Register new user
+POST /api/auth/login     - Login user
+GET  /api/auth/me        - Get current user (requires auth)
+POST /api/auth/logout    - Logout user (requires auth)
+```
+
+### Protected Endpoints (Require Authentication)
+
+#### Process Command
 ```
 POST /api/process
+Authorization: Bearer <token>
 ```
 **Body:**
 ```json
@@ -219,17 +310,19 @@ POST /api/process
 }
 ```
 
-### Get Task Status
+#### Get Task Status
 ```
 GET /api/task/:taskId
+Authorization: Bearer <token>
 ```
 Returns the status and details of a specific task.
 
-### Execution History
+#### Execution History
 ```
-GET /api/history
+GET /api/history?page=1&limit=10
+Authorization: Bearer <token>
 ```
-Returns the last 10 executed tasks.
+Returns paginated execution history for the authenticated user.
 
 ## 🎭 Interactive Demo
 
