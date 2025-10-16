@@ -16,7 +16,7 @@
   "dependencies": {
     "@azure/msal-node": "^2.6.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
-    "electron-store": "^8.1.0",
+    "electron-store": "^11.0.2",
     "axios": "^1.6.0"
   },
   "devDependencies": {
