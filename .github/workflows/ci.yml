@@ -109,7 +109,7 @@ jobs:
         CI: false
 
     - name: Archive production artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: client-build
         path: client/build
