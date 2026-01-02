@@ -15,6 +15,13 @@ const { authenticate, optionalAuth } = require('./middleware/auth');
 const validations = require('./middleware/validation');
 const Task = require('./models/Task');
 const authRoutes = require('./routes/auth');
+const adminRolesRoutes = require('./routes/admin/roles'); // Import admin roles routes
+const { requirePermission } = require('./middleware/rbac'); // Import RBAC middleware
+const cookieParser = require('cookie-parser'); // Import cookie-parser
+const { conditionalCsrf, addCsrfToken } = require('./middleware/csrf'); // Import CSRF middleware
+const secretsManager = require('./utils/secretsManager'); // Import secretsManager
+const consentRoutes = require('./routes/gdpr/consent'); // Import consent routes
+const exportRoutes = require('./routes/gdpr/export'); // Import export routes
 
 // Load and validate environment variables
 dotenv.config();
@@ -67,6 +74,13 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
+// Cookie Parser for CSRF
+app.use(cookieParser());
+
+// CSRF Protection
+app.use(conditionalCsrf);
+app.use(addCsrfToken);
+
 // Request logging
 const morganFormat = env.NODE_ENV === 'production' ? 'combined' : 'dev';
 app.use(morgan(morganFormat, {
@@ -88,6 +102,15 @@ app.use((req, res, next) => {
 
 // Auth routes (no authentication required)
 app.use('/api/auth', authRoutes);
+
+// Admin roles routes (require authentication and RBAC)
+app.use('/api/admin/roles', authenticate, adminRolesRoutes);
+
+// GDPR Consent routes
+app.use('/api/gdpr/consent', consentRoutes);
+
+// GDPR Export routes
+app.use('/api/gdpr/export', exportRoutes);
 
 // Health check endpoint (no authentication required)
 app.get('/api/health', async (req, res) => {
@@ -442,6 +465,33 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 async function startServer() {
   try {
+    logger.info('Initializing SecretsManager...');
+    await secretsManager.init();
+
+    logger.info('Fetching secrets from Vault...');
+    const vaultSecrets = await secretsManager.getSecret(secretsManager.config.secretsKvPath);
+    
+    if (vaultSecrets) {
+      // Override process.env with secrets from Vault for critical configurations
+      process.env.JWT_SECRET = vaultSecrets.jwt_secret || process.env.JWT_SECRET;
+      process.env.MONGODB_URI = vaultSecrets.mongodb_uri || process.env.MONGODB_URI;
+      process.env.REDIS_URL = vaultSecrets.redis_url || process.env.REDIS_URL;
+      // Pass the encryption key to process.env as well for encryption.js to pick it up later
+      process.env.ENCRYPTION_KEY = vaultSecrets.encryption_key || process.env.ENCRYPTION_KEY;
+      logger.info('Critical secrets loaded from Vault.');
+    } else {
+      logger.warn('No secrets found in Vault at the configured path. Falling back to .env variables.');
+    }
+
+    // Initialize encryption key from potentially newly loaded environment variable
+    logger.info('Initializing encryption key...');
+    const { initializeEncryptionKey } = require('./utils/encryption');
+    await initializeEncryptionKey();
+    logger.info('Encryption key initialized.');
+
+    // Re-validate env after loading secrets, as some might have changed
+    const updatedEnv = validateEnv();
+    
     // Connect to database
     await connectDatabase();
     
@@ -450,7 +500,7 @@ async function startServer() {
       logger.info('='.repeat(50));
       logger.info('🚀 DIForM Server Started Successfully');
       logger.info('='.repeat(50));
-      logger.info(`Environment: ${env.NODE_ENV}`);
+      logger.info(`Environment: ${updatedEnv.NODE_ENV}`); // Use updatedEnv
       logger.info(`Port: ${PORT}`);
       logger.info(`API: http://localhost:${PORT}/api`);
       logger.info(`Health: http://localhost:${PORT}/api/health`);

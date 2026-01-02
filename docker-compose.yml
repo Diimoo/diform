@@ -7,11 +7,14 @@ services:
     restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: diform
+      MONGO_KEYFILE_PATH: /etc/mongo/keyfile # Path to keyfile inside container
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
+      - ./docker/mongodb/keyfile:/etc/mongo/keyfile:ro # Mount keyfile
+    command: mongod --wiredTigerCacheSizeGB 0.5 --replSet rs0 --bind_ip_all --enableEncryption --encryptionKeyFile /etc/mongo/keyfile --clusterAuthMode keyFile
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -33,22 +36,47 @@ services:
       retries: 5
     command: redis-server --appendonly yes
 
+  vault:
+    image: hashicorp/vault:latest
+    container_name: diform-vault
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./docker/vault/config.hcl:/vault/config/vault.hcl:ro
+      - vault_data:/vault/data
+    environment:
+      VAULT_ADDR: 'http://0.0.0.0:8200'
+      VAULT_CONFIG_FILE: /vault/config/vault.hcl
+      # VAULT_DEV_ROOT_TOKEN_ID: "root" # For development only, remove in production
+    cap_add:
+      - IPC_LOCK # Required for mlock to secure memory
+    depends_on:
+      mongodb:
+        condition: service_healthy # Ensure MongoDB is ready as Vault uses it for storage
+    healthcheck:
+      test: ["CMD", "sh", "-c", "vault status -address=http://127.0.0.1:8200 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s # Give Vault some time to start
+    command: "server -config=/vault/config/vault.hcl"
+
   server:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: diform-server
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    # No longer expose 5000 directly to host, Nginx will proxy
+    # ports:
+    #   - "5000:5000"
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - MONGODB_URI=mongodb://mongodb:27017/diform
+      # MONGODB_URI and JWT_SECRET will be fetched from Vault
       - DATABASE_NAME=diform
-      - CLIENT_URL=http://localhost:3000
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRY=7d
+      - CLIENT_URL=https://your_domain.com # Updated for HTTPS, replace with actual domain
       - OLLAMA_MODEL=llama3.2
       - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
       - OLLAMA_TIMEOUT=30000
@@ -57,9 +85,20 @@ services:
       - RATE_LIMIT_WINDOW_MS=900000
       - RATE_LIMIT_MAX_REQUESTS=100
       - LOG_LEVEL=info
+      - VAULT_ADDR=http://diform-vault:8200 # Vault address for server container
+      - VAULT_APPROLE_PATH=auth/approle/login
+      - VAULT_SECRETS_KV_PATH=secret/data/diform/config
+      - VAULT_TOKEN_REFRESH_INTERVAL=300000
+      - VAULT_MAX_RETRIES=3
+      - VAULT_RETRY_BACKOFF=200
+      # Certbot related environment variables - will be set by the vault-setup.sh script
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID}
     depends_on:
       mongodb:
         condition: service_healthy
+      vault:
+        condition: service_healthy # Server depends on Vault
     volumes:
       - ./logs:/app/logs
     healthcheck:
@@ -69,15 +108,34 @@ services:
       retries: 3
       start_period: 40s
 
-  # Optional: Ollama service (if not running on host)
-  # ollama:
-  #   image: ollama/ollama:latest
-  #   container_name: diform-ollama
-  #   restart: unless-stopped
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama_data:/root/.ollama
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: diform-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/letsencrypt # Certificates from Certbot or self-signed
+      - ./var/www/certbot:/var/www/certbot # Used by Certbot for ACME challenges
+      - ./logs/nginx:/var/log/nginx # Nginx logs
+    depends_on:
+      server:
+        condition: service_started
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'" # Keep Nginx running and reload every 6h
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: diform-certbot
+    volumes:
+      - ./docker/nginx/ssl:/etc/letsencrypt # Share SSL certs with Nginx
+      - ./var/www/certbot:/var/www/certbot # ACME challenge webroot
+    # Entrypoint is overridden to run 'certbot certonly' once to get initial certs
+    # In production, this would be part of an orchestration that manages domains
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    # In a real setup, this command would be more robust.
+    # For initial setup, you might run 'certbot certonly --webroot -w /var/www/certbot -d your_domain.com -d www.your_domain.com --email your_email@example.com --agree-tos --no-eff-email' manually or via a setup script.
 
 volumes:
   mongodb_data:
@@ -85,6 +143,8 @@ volumes:
   mongodb_config:
     driver: local
   redis_data:
+    driver: local
+  vault_data:
     driver: local
   # ollama_data:
   #   driver: local

@@ -4,6 +4,7 @@ const User = require('../models/User');
 const logger = require('../config/logger');
 const validations = require('../middleware/validation');
 const { authenticate } = require('../middleware/auth');
+const auditLogger = require('../middleware/auditLogger'); // Import auditLogger
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ const router = express.Router();
  * Register a new user
  * POST /api/auth/register
  */
-router.post('/register', validations.register, async (req, res) => {
+router.post('/register', validations.register, auditLogger('user.register', { resourceType: 'User' }, (req) => ({ email: req.body.email })), async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
@@ -61,7 +62,7 @@ router.post('/register', validations.register, async (req, res) => {
  * Login user
  * POST /api/auth/login
  */
-router.post('/login', validations.login, async (req, res) => {
+router.post('/login', validations.login, auditLogger('user.login', { resourceType: 'User' }, (req) => ({ email: req.body.email })), async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -126,7 +127,7 @@ router.post('/login', validations.login, async (req, res) => {
  * Get current user profile
  * GET /api/auth/me
  */
-router.get('/me', authenticate, async (req, res) => {
+router.get('/me', authenticate, auditLogger('user.profileAccess', { resourceType: 'User' }, (req) => ({ userId: req.user._id, email: req.user.email })), async (req, res) => {
   try {
     res.json({
       success: true,
@@ -145,7 +146,7 @@ router.get('/me', authenticate, async (req, res) => {
  * Logout user (client-side token removal, optional endpoint)
  * POST /api/auth/logout
  */
-router.post('/logout', authenticate, async (req, res) => {
+router.post('/logout', authenticate, auditLogger('user.logout', { resourceType: 'User' }, (req) => ({ userId: req.user._id, email: req.user.email })), async (req, res) => {
   // In a stateless JWT system, logout is handled client-side
   // This endpoint is optional and can be used for logging purposes
   logger.info(`User logged out: ${req.user.email}`);

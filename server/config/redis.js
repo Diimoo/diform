@@ -89,9 +89,69 @@ const cacheMiddleware = (duration = 300) => {
   };
 };
 
+// Helper function to get from cache
+const getFromCache = async (key) => {
+  try {
+    const client = getRedisClient();
+    const value = await client.get(key);
+    return value;
+  } catch (error) {
+    logger.error('Redis get error:', { key, error: error.message });
+    return null; // Graceful degradation
+  }
+};
+
+// Helper function to set in cache
+const setInCache = async (key, value, ttl = 300) => {
+  try {
+    const client = getRedisClient();
+    if (ttl) {
+      await client.setex(key, ttl, value);
+    } else {
+      await client.set(key, value);
+    }
+    return true;
+  } catch (error) {
+    logger.error('Redis set error:', { key, error: error.message });
+    return false; // Graceful degradation
+  }
+};
+
+// Helper function to invalidate cache by pattern
+const invalidatePattern = async (pattern) => {
+  try {
+    const client = getRedisClient();
+    const keys = await client.keys(pattern);
+    if (keys.length > 0) {
+      await client.del(...keys);
+      logger.info(`Invalidated ${keys.length} cache keys`, { pattern });
+    }
+    return keys.length;
+  } catch (error) {
+    logger.error('Redis invalidate pattern error:', { pattern, error: error.message });
+    return 0;
+  }
+};
+
+// Helper function to delete from cache
+const deleteFromCache = async (key) => {
+  try {
+    const client = getRedisClient();
+    await client.del(key);
+    return true;
+  } catch (error) {
+    logger.error('Redis delete error:', { key, error: error.message });
+    return false;
+  }
+};
+
 module.exports = {
   connectRedis,
   getRedisClient,
   disconnectRedis,
-  cacheMiddleware
+  cacheMiddleware,
+  getFromCache,
+  setInCache,
+  invalidatePattern,
+  deleteFromCache
 };
