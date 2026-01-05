@@ -13,7 +13,7 @@
     "react-dom": "^18.2.0",
     "react-i18next": "^13.5.0",
     "react-icons": "^4.11.0",
-    "react-router-dom": "^7.9.4",
+    "react-router-dom": "^7.11.0",
     "react-scripts": "5.0.1",
     "workbox-core": "^7.0.0",
     "workbox-precaching": "^7.0.0",
